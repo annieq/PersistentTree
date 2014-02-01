@@ -43,7 +43,7 @@ public:
 int _tmain(int argc, _TCHAR* argv[])
 {
 	BST<int> myBst;
-	srand(time(NULL));
+	srand((int)time(NULL));
 
 	cout << "=== MIN, MAX ===\n";
 	try

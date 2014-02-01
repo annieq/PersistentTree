@@ -23,6 +23,8 @@ template <class T, class Comparator = defComp<T>>
 class BST
 {
 private:
+	struct ModificationBox;
+
 	struct Node
 	{
 		shared_ptr<Node> _left;
@@ -30,15 +32,22 @@ private:
 		shared_ptr<Node> _parent;
 
 		T _value;		// wartosc elementu
-		ModBox _modBox;	// pole modyfikacji
-	};
+		ModificationBox _modbox;	// pole modyfikacji
+	} ;
 
 	struct ModificationBox
 	{
 		int _time;				// chwila modyfikacji (-1 oznacza brak modyfikacji)
 		int _field;				// co bylo zmodyfikowane (-1 lewe dziecko, 1 prawe dziecko, 0 nic)
 		shared_ptr<Node> _ptr;	// wskaznik na nowe dziecko
-	} ModBox;
+
+		ModificationBox()
+		{
+			_time = -1;
+			_field = 0;
+			_ptr = nullptr;
+		}
+	} ;
 
 	shared_ptr<Node> _root;	// korzen drzewa
 	vector<shared_ptr<Node>> _timestamps; // lista przechowujaca wskazniki na korzen drzewa w chwili t
@@ -75,14 +84,63 @@ public:
 		}
 		e->_parent = y;
 		if (y == nullptr)
+		{
 			_root = e;
+			_timestamps.push_back(_root);
+		}
 		else 
 		{
 			if (_cmp(e->_value, y->_value) == -1)
-				y->_left = e;
+			{
+				//y->_left = e;
+				if (y->_modbox._time == -1) // pole modyfikacji jest wolne
+				{
+					y->_modbox._time = _timestamps.size(); // todo: spr. czy size czy capacity czy co tam; ustawia aktualna wartosc t
+					y->_modbox._field = -1;
+					y->_modbox._ptr = e;
+					_timestamps.push_back(_root);
+				}
+				else
+				{
+					// kopiowanie
+					shared_ptr<Node> z = nullptr;
+					while (y->_modbox._time != -1)
+					{
+						z = make_shared<Node>(Node());
+						z = y; // kopiowanie wezla - do sprawdzenia!
+						y = y->_parent;
+					}
+					if (y == nullptr) // doszlismy do korzenia
+					{
+						_timestamps.push_back(z);
+					}
+					else
+					{
+						y->_modbox._time = _timestamps.size(); // size czy co innego?
+						y->_modbox._field = (_cmp(z->_value, y->_value)) ? -1 : 1; // do spr
+						y->_modbox._ptr = z;
+						_timestamps.push_back(_root);
+					}
+				}
+			}
 			else
-				y->_right = e;
+			{
+				//y->_right = e;
+				if (y->_modbox._time == -1) // pole modyfikacji jest wolne
+				{
+					y->_modbox._time = _timestamps.size(); // todo: spr. czy size czy capacity czy co tam; ustawia aktualna wartosc t
+					y->_modbox._field = 1;
+					y->_modbox._ptr = e;
+				}
+				else
+				{
+					// todo: kopiowanie
+
+					// _timestamps.push_back( ... );
+				}
+			}
 		}
+
 		return true;
 	}
 
