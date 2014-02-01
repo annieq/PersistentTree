@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 using namespace std;
 
@@ -27,16 +28,29 @@ private:
 		shared_ptr<Node> _left;
 		shared_ptr<Node> _right;
 		shared_ptr<Node> _parent;
-		T _value;
-	} _node;
+
+		T _value;		// wartosc elementu
+		ModBox _modBox;	// pole modyfikacji
+	};
+
+	struct ModificationBox
+	{
+		int _time;				// chwila modyfikacji (-1 oznacza brak modyfikacji)
+		int _field;				// co bylo zmodyfikowane (-1 lewe dziecko, 1 prawe dziecko, 0 nic)
+		shared_ptr<Node> _ptr;	// wskaznik na nowe dziecko
+	} ModBox;
 
 	shared_ptr<Node> _root;	// korzen drzewa
+	vector<shared_ptr<Node>> _timestamps; // lista przechowujaca wskazniki na korzen drzewa w chwili t
+
 	Comparator _cmp;		// wskaznik na obiekt funkcyjny
 
 public:
 	BST()
 	{
 		_root = nullptr;
+		_timestamps.clear();
+
 		_cmp = Comparator();
 	}
 
