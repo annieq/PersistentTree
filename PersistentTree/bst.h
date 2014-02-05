@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <vector>
+#include <climits>
 
 using namespace std;
 
@@ -33,6 +34,22 @@ private:
 
 		T _value;		// wartosc elementu
 		ModificationBox _modbox;	// pole modyfikacji
+
+		Node()
+		{
+			_left = _right = _parent = nullptr;
+			_value = INT_MIN;
+			_modbox = ModificationBox();
+		}
+
+		Node(shared_ptr<Node> n)	// kopiowanie (bez pola modyfikacji)
+		{
+			_left = n->_left;
+			_right = n->_right;
+			_parent = n->_parent;
+			_value = n->_value;
+			_modbox = ModificationBox();
+		}
 	} ;
 
 	struct ModificationBox
@@ -74,70 +91,134 @@ public:
 		shared_ptr<Node> e = make_shared<Node>(Node());
 		e->_value = value;
 
-		while (x != nullptr)
+		while (x != nullptr)	// szukamy rodzica elementu do wstawienia
 		{
-			y = x;
-			if (_cmp(e->_value, x->_value) == -1)
-				x = x->_left;
-			else
-				x = x->_right;
+			y = x;	// y - bedzie przechowywac wskaznik na rodzica
+
+			if (_cmp(e->_value, x->_value) == -1) // idziemy w lewo
+			{
+				if (x->_modbox._field == -1)
+					x = x->_modbox._ptr;	// zmodyfikowane lewe dziecko
+				else
+					x = x->_left;
+			}
+			else	// idziemy w prawo
+			{
+				if (x->_modbox._field == 1)
+					x = x->_modbox._ptr;	// zmodyfikowane prawe dziecko
+				else
+					x = x->_right;
+			}
 		}
 		e->_parent = y;
-		if (y == nullptr)
+		shared_ptr<Node> parent = y;
+
+		if (y == nullptr) // nasz element jest korzeniem
 		{
 			_root = e;
 			_timestamps.push_back(_root);
 		}
-		else 
+		else	// przypisanie rodzicowi (y) dziecka (e)
 		{
-			if (_cmp(e->_value, y->_value) == -1)
+			if (y->_modbox._time == -1)		// pole modyfikacji jest wolne
 			{
-				//y->_left = e;
-				if (y->_modbox._time == -1) // pole modyfikacji jest wolne
+				if (_cmp(e->_value, y->_value) == -1)	// lewe dziecko
 				{
-					y->_modbox._time = _timestamps.size(); // todo: spr. czy size czy capacity czy co tam; ustawia aktualna wartosc t
 					y->_modbox._field = -1;
-					y->_modbox._ptr = e;
-					_timestamps.push_back(_root);
 				}
-				else
+				else	// prawe dziecko
 				{
-					// kopiowanie
-					shared_ptr<Node> z = nullptr;
-					while (y->_modbox._time != -1)
-					{
-						z = make_shared<Node>(Node());
-						z = y; // kopiowanie wezla - do sprawdzenia!
-						y = y->_parent;
-					}
-					if (y == nullptr) // doszlismy do korzenia
-					{
-						_timestamps.push_back(z);
-					}
-					else
-					{
-						y->_modbox._time = _timestamps.size(); // size czy co innego?
-						y->_modbox._field = (_cmp(z->_value, y->_value)) ? -1 : 1; // do spr
-						y->_modbox._ptr = z;
-						_timestamps.push_back(_root);
-					}
-				}
-			}
-			else
-			{
-				//y->_right = e;
-				if (y->_modbox._time == -1) // pole modyfikacji jest wolne
-				{
-					y->_modbox._time = _timestamps.size(); // todo: spr. czy size czy capacity czy co tam; ustawia aktualna wartosc t
 					y->_modbox._field = 1;
-					y->_modbox._ptr = e;
 				}
-				else
+				y->_modbox._time = _timestamps.size(); // ustawia aktualna wartosc t
+				y->_modbox._ptr = e;	// przypisanie dziecka
+				_timestamps.push_back(_root);
+			}
+			else	// trzeba kopiowaæ
+			{
+				while (y != nullptr && y->_modbox._time != -1)	// szukamy wezla z pustym polem modyfikacji
 				{
-					// todo: kopiowanie
-
-					// _timestamps.push_back( ... );
+					x = y;
+					y = y->_parent;
 				}
+					
+				shared_ptr<Node> z = y;
+				shared_ptr<Node> zParent = y;
+
+				if (y == nullptr) // doszlismy do korzenia
+				{
+					// kopiujemy cale drzewo
+					z = make_shared<Node>(x);	// kopiowanie roota
+					zParent = z;
+					_root = z;	// nowy root
+					_timestamps.push_back(_root);
+					x = x->_modbox._ptr;
+
+					while (x != nullptr)	// kopiowanie drzewa
+					{
+						if (_cmp(x->_value, x->_parent->_value) == -1)
+							z = z->_left;
+						else
+							z = z->_right;
+						z = make_shared<Node>(x);
+						z->_parent = zParent;
+						if (_cmp(z->_value, zParent->_value) == -1)
+							zParent->_left = z;
+						else
+							zParent->_right = z;
+
+						x = x->_modbox._ptr;	// x = dziecko iksa
+						zParent = z; // dla nastepnego przebiegu
+					}
+					// przypisanie rodzicowi dziecka (e)
+					while (_cmp(parent->_value, z->_value) != 0)	// szukamy rodzica
+						z = z->_parent;
+					if (_cmp(e->_value, z->_value) == -1)	// przypisujemy
+						z->_left = e;
+					else
+						z->_right = e;
+					e->_parent = z;
+
+					return true;
+				}
+
+				// kopiowanie fragmentu drzewa
+				// y - najniszy el. z wolnym polem modyfikacji
+				// x - pierwszy el. do skopiowania
+				x = (_cmp(e->_value, y->_value) == -1) ? (y->_left) : (y->_right);
+				z = make_shared<Node>(x);
+				y->_modbox._time = _timestamps.size();
+				y->_modbox._field = (_cmp(x->_value, y->_value) == -1) ? -1 : 1;
+				y->_modbox._ptr = z;
+				zParent = z;
+				x = x->_modbox._ptr;
+
+				while (x != nullptr)
+				{
+					if (_cmp(x->_value, x->_parent->_value) == -1)
+						z = z->_left;
+					else
+						z = z->_right;
+					z = make_shared<Node>(x);
+					z->_parent = zParent;
+					if (_cmp(z->_value, zParent->_value) == -1)
+						zParent->_left = z;
+					else
+						zParent->_right = z;
+
+					x = x->_modbox._ptr;	// x = dziecko x
+					zParent = z; // dla nastepnego przebiegu
+				}
+				// przypisanie rodzicowi dziecka (e)
+				while (_cmp(parent->_value, z->_value) != 0)	// szukamy rodzica
+					z = z->_parent;
+				if (_cmp(e->_value, z->_value) == -1)
+					z->_left = e;
+				else
+					z->_right = e;
+				e->_parent = z;
+
+				_timestamps.push_back(_root);
 			}
 		}
 
