@@ -66,6 +66,68 @@ private:
 		}
 	} ;
 
+	template <class T>
+	class bstIterator
+	{
+		shared_ptr<Node> _ptr;
+
+	public:
+		bstIterator()
+		{
+			_ptr = nullptr;
+		}
+
+		bstIterator(shared_ptr<Node> &p)
+		{
+			_ptr = p;
+		}
+	};
+
+public:
+	// iterator begin; ver - wersja drzewa
+	shared_ptr<Node> begin(int ver)
+	{
+		shared_ptr<Node> e = _timestamps[ver];	// e = root w danej chwili
+		shared_ptr<Node> x = nullptr;
+		while(e != nullptr)
+		{
+			x = e;
+			if (e->_left != nullptr)
+				e = e->_left;
+			else
+			{
+				if (e->_modbox._time != -1 && e->_modbox._time <= ver	// pole by³o zmodyfikowane przed dan¹ chwil¹
+							&& e->_modbox._field == -1)					// w polu mod. jest lewe dziecko
+					e = e->_modbox._ptr;
+				else
+					e = nullptr;
+			}
+		}
+		return x;
+	}
+
+	// iterator end; ver - wersja drzewa
+	shared_ptr<Node> end(int ver)
+	{
+		shared_ptr<Node> e = _timestamps[ver];	// e = root w danej chwili
+		shared_ptr<Node> x = nullptr;
+		while(e != nullptr)
+		{
+			x = e;
+			if (e->_right != nullptr)
+				e = e->_right;
+			else
+			{
+				if (e->_modbox._time != -1 && e->_modbox._time <= ver	// pole by³o zmodyfikowane przed dan¹ chwil¹
+							&& e->_modbox._field == 1)					// w polu mod. jest prawe dziecko
+					e = e->_modbox._ptr;
+				else
+					e = nullptr;
+			}
+		}
+		return x;
+	}
+
 	shared_ptr<Node> _root;	// korzen drzewa
 	vector<shared_ptr<Node>> _timestamps; // lista przechowujaca wskazniki na korzen drzewa w chwili t
 
