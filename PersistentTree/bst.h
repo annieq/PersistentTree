@@ -81,9 +81,66 @@ private:
 		{
 			_ptr = p;
 		}
+
+		// iterator next; ver - nr wersji drzewa
+		shared_ptr<Node> next(int ver)
+		{
+			shared_ptr<Node> x = nullptr, y = nullptr;
+
+			// 1) idziemy raz w prawo i maksymalnie w lewo
+			if (_ptr->_modbox._time <= ver && _ptr->_modbox._field == 1)	// prawe dziecko
+				x = _ptr->_modbox._ptr;
+			else if (_ptr->_right != nullptr)
+				x = _ptr->_right;
+			if (x != nullptr)
+			{
+				while (x != nullptr)
+				{
+					y = x;
+					if (x->_modbox._time <= ver && x->_modbox._field == -1)	// lewe dziecko
+						x = x->_modbox._ptr;
+					else
+						x = x->_left;
+				}
+				_ptr = y;
+				return y;
+			}
+			// 2) nie ma dzieci po prawej; idziemy w gore, sprawdzajac czy jestesmy lewym dzieckiem
+			y = _ptr->_parent;
+			x = _ptr;
+			while (y != nullptr)
+			{
+				if (y->_modbox._time <= ver && y->_modbox._field == -1)
+				{
+					if (y->_modbox._ptr == _ptr)
+					{
+						_ptr = y;
+						return y;
+					}
+				}
+				else if (y->_left == x)
+				{
+					_ptr = y;
+					return y;
+				}
+				else
+				{
+					x = y;
+					y = y->_parent;
+				}
+			}
+			return y;
+		}
+
+		T value()
+		{
+			return _ptr->_value;
+		}
 	};
 
 public:
+	typedef bstIterator<T> iterator;
+
 	// iterator begin; ver - wersja drzewa
 	shared_ptr<Node> begin(int ver)
 	{
@@ -128,6 +185,7 @@ public:
 		return x;
 	}
 
+private:
 	shared_ptr<Node> _root;	// korzen drzewa
 	vector<shared_ptr<Node>> _timestamps; // lista przechowujaca wskazniki na korzen drzewa w chwili t
 
