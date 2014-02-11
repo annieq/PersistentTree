@@ -162,6 +162,8 @@ public:
 	// iterator begin; ver - wersja drzewa
 	iterator begin(int ver)
 	{
+		if (ver >= _timestamps.size())
+			throw -1;
 		shared_ptr<Node> e = _timestamps[ver];	// e = root w danej chwili
 		shared_ptr<Node> x = nullptr;
 		while(e != nullptr)
@@ -184,6 +186,8 @@ public:
 	// iterator back; ver - wersja drzewa
 	shared_ptr<Node> back(int ver)
 	{
+		if (ver >= _timestamps.size())
+			throw -1;
 		shared_ptr<Node> e = _timestamps[ver];	// e = root w danej chwili
 		shared_ptr<Node> x = nullptr;
 		while(e != nullptr)
@@ -223,8 +227,8 @@ public:
 
 	bool insert(T value)
 	{
-		if (find(value))
-			return false;
+		//if (find(value, _timestamps.size() - 1))
+		//	return false;
 
 		shared_ptr<Node> y(nullptr);
 		shared_ptr<Node> x( (_timestamps.size() > 0) ? _timestamps.back() : nullptr );
@@ -364,15 +368,27 @@ public:
 		return true;
 	}
 
-	bool find(T value)
+	bool find(T value, int ver)
 	{
-		shared_ptr<Node> ptr = (_timestamps.size() > 0) ? _timestamps.back() : nullptr;	// = _root;
+		//shared_ptr<Node> ptr = (_timestamps.size() > 0) ? _timestamps.back() : nullptr;	// = _root;		
+		if (ver >= _timestamps.size())
+			throw -1;
+		shared_ptr<Node> ptr = _timestamps[ver];	// root
 		while (ptr != nullptr && !(_cmp(value, ptr->_value) == 0))
 		{
-			if (_cmp(value, ptr->_value) == -1)
+			if (_cmp(value, ptr->_value) == -1 && ptr->_left != nullptr)	// najpierw sprawdzamy bezposrednie dzieci
 				ptr = ptr->_left;
-			else
+			else if (ptr->_right != nullptr)
 				ptr = ptr->_right;
+			else	// potem sprawdzamy co jest w polu modyfikacji
+			{
+				if (ptr->_modbox._time != -1 && ptr->_modbox._time <= ver
+						&& _cmp(value, ptr->_value) == ptr->_modbox._field) // tozsame z warunkami: (_cmp(value, ptr->_value) == 1 && ptr->_modbox._field == 1) 
+																			// oraz (_cmp(value, ptr->_value) == -1 && ptr->_modbox._field == -1)
+					ptr = ptr->_modbox._ptr;
+				else
+					ptr = nullptr;
+			}
 		}
 		return (ptr != nullptr);
 	}

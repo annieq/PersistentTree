@@ -26,6 +26,9 @@ int _tmain(int argc, _TCHAR* argv[])
 	printTree(bst, 4);
 	printTree(bst, 5);
 	printTree(bst, 6);
+	//printTree(bst, 8); // trzeba lapac wyjatek!
+
+	//BST<int>::iterator i = bst.back(5);
 
 	system("pause");
 	return 0;
