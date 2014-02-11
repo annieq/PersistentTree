@@ -227,8 +227,13 @@ public:
 
 	bool insert(T value)
 	{
-		//if (find(value, _timestamps.size() - 1))
-		//	return false;
+		try
+		{
+		if (find(value, _timestamps.size() - 1))
+			return false;
+		}
+		catch (int ex) {}
+		// nie ma takiego elementu w drzewie
 
 		shared_ptr<Node> y(nullptr);
 		shared_ptr<Node> x( (_timestamps.size() > 0) ? _timestamps.back() : nullptr );
@@ -369,26 +374,28 @@ public:
 	}
 
 	bool find(T value, int ver)
-	{
-		//shared_ptr<Node> ptr = (_timestamps.size() > 0) ? _timestamps.back() : nullptr;	// = _root;		
+	{	
 		if (ver >= _timestamps.size())
 			throw -1;
+		if (_timestamps.empty())
+			return false;
 		shared_ptr<Node> ptr = _timestamps[ver];	// root
 		while (ptr != nullptr && !(_cmp(value, ptr->_value) == 0))
 		{
-			if (_cmp(value, ptr->_value) == -1 && ptr->_left != nullptr)	// najpierw sprawdzamy bezposrednie dzieci
+			// najpierw sprawdzamy, czy byly modyfikacje (w danej chwili lub wczesniej)
+			// i czy bylo modyfikowane interesujace nas dziecko
+			if (ptr->_modbox._time != -1 && ptr->_modbox._time <= ver
+					&& _cmp(value, ptr->_value) == ptr->_modbox._field) // tozsame z warunkami: (_cmp(value, ptr->_value) == 1 && ptr->_modbox._field == 1) 
+																		// oraz (_cmp(value, ptr->_value) == -1 && ptr->_modbox._field == -1)
+				ptr = ptr->_modbox._ptr;
+			// potem sprawdzamy bezposrednie dzieci
+			else if (_cmp(value, ptr->_value) == -1 && ptr->_left != nullptr)
 				ptr = ptr->_left;
 			else if (ptr->_right != nullptr)
 				ptr = ptr->_right;
-			else	// potem sprawdzamy co jest w polu modyfikacji
-			{
-				if (ptr->_modbox._time != -1 && ptr->_modbox._time <= ver
-						&& _cmp(value, ptr->_value) == ptr->_modbox._field) // tozsame z warunkami: (_cmp(value, ptr->_value) == 1 && ptr->_modbox._field == 1) 
-																			// oraz (_cmp(value, ptr->_value) == -1 && ptr->_modbox._field == -1)
-					ptr = ptr->_modbox._ptr;
-				else
-					ptr = nullptr;
-			}
+			// jesli zaden z warunkow nie jest spelniony, zwracamy null
+			else
+				ptr = nullptr;
 		}
 		return (ptr != nullptr);
 	}
