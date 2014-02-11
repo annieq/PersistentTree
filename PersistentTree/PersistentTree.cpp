@@ -36,7 +36,7 @@ void printTree(BST<int> bst, int ver)
 	BST<int>::iterator it = bst.begin(ver);
 	cout << "== Drzewo w chwili " << ver << ":\n";
 	cout << it.value();
-	while (it.next(ver) != nullptr)
+	while (it.next() != nullptr)
 	{
 		cout << ",\t" << it.value() ;
 	}

@@ -6,6 +6,7 @@
 
 using namespace std;
 
+// domyœlny komparator
 template <class T>
 class defComp
 {
@@ -24,10 +25,10 @@ template <class T, class Comparator = defComp<T>>
 class BST
 {
 private:
-	struct ModificationBox;
-
 	struct Node
 	{
+		struct ModificationBox;
+
 		shared_ptr<Node> _left;
 		shared_ptr<Node> _right;
 		shared_ptr<Node> _parent;
@@ -50,45 +51,57 @@ private:
 			_value = n->_value;
 			_modbox = ModificationBox();
 		}
-	} ;
 
-	struct ModificationBox
-	{
-		int _time;				// chwila modyfikacji (-1 oznacza brak modyfikacji)
-		int _field;				// co bylo zmodyfikowane (-1 lewe dziecko, 1 prawe dziecko, 0 nic)
-		shared_ptr<Node> _ptr;	// wskaznik na nowe dziecko
-
-		ModificationBox()
+		// struktura wewnetrzna - pole modyfikacji wezla
+		struct ModificationBox
 		{
-			_time = -1;
-			_field = 0;
-			_ptr = nullptr;
-		}
-	} ;
+			int _time;				// chwila modyfikacji (-1 oznacza brak modyfikacji)
+			int _field;				// co bylo zmodyfikowane (-1 lewe dziecko, 1 prawe dziecko, 0 nic)
+			shared_ptr<Node> _ptr;	// wskaznik na nowe dziecko
 
+			ModificationBox()
+			{
+				_time = -1;
+				_field = 0;
+				_ptr = nullptr;
+			}
+		};
+	} ;
+	
 	template <class T>
 	class bstIterator
 	{
-		shared_ptr<Node> _ptr;
+		shared_ptr<Node> _ptr; // wskaznik na aktualny wezel
+		int _version; // numer wersji, po ktorej iterujemy
 
 	public:
 		bstIterator()
 		{
 			_ptr = nullptr;
+			_version = -1;
 		}
 
 		bstIterator(shared_ptr<Node> &p)
 		{
 			_ptr = p;
+			_version = -1;
 		}
 
-		// iterator next; ver - nr wersji drzewa
-		shared_ptr<Node> next(int ver)
+		bstIterator(shared_ptr<Node> &p, int ver)
 		{
+			_ptr = p;
+			_version = ver;
+		}
+
+		// iterator next
+		shared_ptr<Node> next()
+		{
+			if (_version < 0)
+				throw -1;
 			shared_ptr<Node> x = nullptr, y = nullptr;
 
 			// 1) idziemy raz w prawo i maksymalnie w lewo
-			if (_ptr->_modbox._time <= ver && _ptr->_modbox._field == 1)	// prawe dziecko
+			if (_ptr->_modbox._time <= _version && _ptr->_modbox._field == 1)	// prawe dziecko
 				x = _ptr->_modbox._ptr;
 			else if (_ptr->_right != nullptr)
 				x = _ptr->_right;
@@ -97,7 +110,7 @@ private:
 				while (x != nullptr)
 				{
 					y = x;
-					if (x->_modbox._time <= ver && x->_modbox._field == -1)	// lewe dziecko
+					if (x->_modbox._time <= _version && x->_modbox._field == -1)	// lewe dziecko
 						x = x->_modbox._ptr;
 					else
 						x = x->_left;
@@ -110,7 +123,7 @@ private:
 			x = _ptr;
 			while (y != nullptr)
 			{
-				if (y->_modbox._time <= ver && y->_modbox._field == -1)
+				if (y->_modbox._time <= _version && y->_modbox._field == -1)
 				{
 					if (y->_modbox._ptr == _ptr)
 					{
@@ -132,6 +145,11 @@ private:
 			return y;
 		}
 
+		void operator++()
+		{
+			next();
+		}
+
 		T value()
 		{
 			return _ptr->_value;
@@ -142,7 +160,7 @@ public:
 	typedef bstIterator<T> iterator;
 
 	// iterator begin; ver - wersja drzewa
-	shared_ptr<Node> begin(int ver)
+	iterator begin(int ver)
 	{
 		shared_ptr<Node> e = _timestamps[ver];	// e = root w danej chwili
 		shared_ptr<Node> x = nullptr;
@@ -160,11 +178,11 @@ public:
 					e = nullptr;
 			}
 		}
-		return x;
+		return iterator(x, ver);
 	}
 
-	// iterator end; ver - wersja drzewa
-	shared_ptr<Node> end(int ver)
+	// iterator back; ver - wersja drzewa
+	shared_ptr<Node> back(int ver)
 	{
 		shared_ptr<Node> e = _timestamps[ver];	// e = root w danej chwili
 		shared_ptr<Node> x = nullptr;
@@ -182,11 +200,16 @@ public:
 					e = nullptr;
 			}
 		}
-		return x;
+		return iterator(x, ver);
+	}
+
+	// iterator end - zwraca wskaznik na element po ostatnim elemencie (czyli nullptr)
+	shared_ptr<Node> end(int ver)
+	{
+		return nullptr;
 	}
 
 private:
-	shared_ptr<Node> _root;	// korzen drzewa
 	vector<shared_ptr<Node>> _timestamps; // lista przechowujaca wskazniki na korzen drzewa w chwili t
 
 	Comparator _cmp;		// wskaznik na obiekt funkcyjny
@@ -194,9 +217,7 @@ private:
 public:
 	BST()
 	{
-		_root = nullptr;
 		_timestamps.clear();
-
 		_cmp = Comparator();
 	}
 
@@ -206,7 +227,7 @@ public:
 			return false;
 
 		shared_ptr<Node> y(nullptr);
-		shared_ptr<Node> x(_root);
+		shared_ptr<Node> x( (_timestamps.size() > 0) ? _timestamps.back() : nullptr );
 
 		shared_ptr<Node> e = make_shared<Node>(Node());
 		e->_value = value;
@@ -235,8 +256,7 @@ public:
 
 		if (y == nullptr) // nasz element jest korzeniem
 		{
-			_root = e;
-			_timestamps.push_back(_root);
+			_timestamps.push_back(e);
 		}
 		else	// przypisanie rodzicowi (y) dziecka (e)
 		{
@@ -252,7 +272,7 @@ public:
 				}
 				y->_modbox._time = _timestamps.size(); // ustawia aktualna wartosc t
 				y->_modbox._ptr = e;	// przypisanie dziecka
-				_timestamps.push_back(_root);
+				_timestamps.push_back(_timestamps.back());
 			}
 			else	// trzeba kopiowaæ
 			{
@@ -270,8 +290,7 @@ public:
 					// kopiujemy cale drzewo
 					z = make_shared<Node>(x);	// kopiowanie roota
 					zParent = z;
-					_root = z;	// nowy root
-					_timestamps.push_back(_root);
+					_timestamps.push_back(z);	// nowy root
 					x = x->_modbox._ptr;
 
 					while (x != nullptr)	// kopiowanie drzewa
@@ -338,7 +357,7 @@ public:
 					z->_right = e;
 				e->_parent = z;
 
-				_timestamps.push_back(_root);
+				_timestamps.push_back(_timestamps.back());
 			}
 		}
 
@@ -347,7 +366,7 @@ public:
 
 	bool find(T value)
 	{
-		shared_ptr<Node> ptr = _root;
+		shared_ptr<Node> ptr = (_timestamps.size() > 0) ? _timestamps.back() : nullptr;	// = _root;
 		while (ptr != nullptr && !(_cmp(value, ptr->_value) == 0))
 		{
 			if (_cmp(value, ptr->_value) == -1)
