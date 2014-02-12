@@ -403,19 +403,30 @@ public:
 	bool erase(T value)
 	{
 		// szukanie wezla z wartoscia 'value'		
-		shared_ptr<Node> ptr = _root;
-		shared_ptr<Node> y = nullptr;
+		shared_ptr<Node> ptr( (_timestamps.size() > 0) ? _timestamps.back() : nullptr );
+		shared_ptr<Node> y(nullptr);
 
 		while (ptr != nullptr && !(_cmp(value, ptr->_value) == 0))
 		{
-			if (_cmp(value, ptr->_value) == -1)
+			// najpierw sprawdzamy, czy byly modyfikacje (w danej chwili lub wczesniej)
+			// i czy bylo modyfikowane interesujace nas dziecko
+			if (ptr->_modbox._time != -1 && ptr->_modbox._time <= ver
+					&& _cmp(value, ptr->_value) == ptr->_modbox._field) // tozsame z warunkami: (_cmp(value, ptr->_value) == 1 && ptr->_modbox._field == 1) 
+																		// oraz (_cmp(value, ptr->_value) == -1 && ptr->_modbox._field == -1)
+				ptr = ptr->_modbox._ptr;
+			// potem sprawdzamy bezposrednie dzieci
+			else if (_cmp(value, ptr->_value) == -1 && ptr->_left != nullptr)
 				ptr = ptr->_left;
-			else
+			else if (ptr->_right != nullptr)
 				ptr = ptr->_right;
+			// jesli zaden z warunkow nie jest spelniony, nie ma takiego elementu
+			else
+				ptr = nullptr;
 		}
 		if (ptr == nullptr)
 			return false;	// taki element nie istnieje
 
+		// ptr wskazuje na usuwany element
 		if (ptr->_left == nullptr || ptr->_right == nullptr)
 			y = ptr;
 		else	// szukanie nastepnika
@@ -431,7 +442,7 @@ public:
 				y = ptr->_parent;
 				while (y != nullptr && ptr == y->_right)
 				{
-					ptr = y;
+					ptr = y;	// UWAGA NA BUGI
 					y = y->_parent;
 				}
 			}
