@@ -15,12 +15,16 @@ int _tmain(int argc, _TCHAR* argv[])
 		bst.insert(20);
 		bst.insert(10);
 		bst.insert(5);
-		bst.insert(6);
 		bst.erase(5);
+		bst.insert(5);
+		bst.erase(5);
+		bst.erase(20);
 		//bst.insert(15);
+		//bst.erase(10);
 		//bst.insert(17);
 		//bst.insert(12);
 		//bst.insert(21);
+		//bst.erase(17);
 
 		bool found = bst.find(10, 6);
 		found = bst.find(17, 3);

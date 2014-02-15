@@ -56,7 +56,7 @@ private:
 		struct ModificationBox
 		{
 			int _time;				// chwila modyfikacji (-1 oznacza brak modyfikacji)
-			int _field;				// co bylo zmodyfikowane (-1 lewe dziecko, 1 prawe dziecko, 0 nic)
+			int _field;				// co bylo zmodyfikowane (-1 lewe dziecko, 1 prawe dziecko, 0 nic lub dziecko usuniete)
 			shared_ptr<Node> _ptr;	// wskaznik na nowe dziecko
 
 			ModificationBox()
@@ -403,42 +403,38 @@ public:
 	bool erase(T value)
 	{
 		// szukanie wezla z wartoscia 'value'		
-		shared_ptr<Node> ptr( (_timestamps.size() > 0) ? _timestamps.back() : nullptr );
-		shared_ptr<Node> el(nullptr);
+		shared_ptr<Node> el( (_timestamps.size() > 0) ? _timestamps.back() : nullptr );
 
-		while (ptr != nullptr && !(_cmp(value, ptr->_value) == 0))
+		while (el != nullptr && !(_cmp(value, el->_value) == 0))
 		{
 			// najpierw sprawdzamy, czy byly modyfikacje
 			// i czy bylo modyfikowane interesujace nas dziecko
-			if (ptr->_modbox._time != -1
-					&& _cmp(value, ptr->_value) == ptr->_modbox._field) // tozsame z warunkami: (_cmp(value, ptr->_value) == 1 && ptr->_modbox._field == 1) 
-																		// oraz (_cmp(value, ptr->_value) == -1 && ptr->_modbox._field == -1)
-				ptr = ptr->_modbox._ptr;
+			if (el->_modbox._time != -1
+					&& _cmp(value, el->_value) == el->_modbox._field) // tozsame z warunkami: (_cmp(value, el->_value) == 1 && el->_modbox._field == 1) 
+																		// oraz (_cmp(value, el->_value) == -1 && el->_modbox._field == -1)
+				el = el->_modbox._ptr;
 			// potem sprawdzamy bezposrednie dzieci
-			else if (_cmp(value, ptr->_value) == -1 && ptr->_left != nullptr)
-				ptr = ptr->_left;
-			else if (ptr->_right != nullptr)
-				ptr = ptr->_right;
+			else if (_cmp(value, el->_value) == -1 && el->_left != nullptr)
+				el = el->_left;
+			else if (el->_right != nullptr)
+				el = el->_right;
 			// jesli zaden z warunkow nie jest spelniony, nie ma takiego elementu
 			else
-				ptr = nullptr;
+				el = nullptr;
 		}
-		if (ptr == nullptr)
+		if (el == nullptr)
 			return false;	// taki element nie istnieje
 
-		// ptr wskazuje na usuwany element
+		// el wskazuje na usuwany element
 
-		if (   (ptr->_modbox._time == -1 && (ptr->_left == nullptr || ptr->_right == nullptr))
-			|| (ptr->_modbox._time != -1 && ptr->_left == nullptr && ptr->_right == nullptr))
-			// jeœli ptr ma nie wiecej niz 1 dziecko
-			el = ptr;
-		else	// jesli jest dwoje dzieci
+		if (   (el->_modbox._time == -1 && el->_left != nullptr && el->_right != nullptr)
+			|| ( (el->_modbox._field == -1 || el->_left != nullptr) && el->_right != nullptr) ) // jesli jest dwoje dzieci
 		{
-			bstIterator<T> iter = bstIterator<T>(ptr, _timestamps.size() - 1);
-			el = iter.next();
-			// el wskazuje na nastepnik usuwanego elementu
+			// sytuacja nieobslugiwana
+			throw -2;
 		}
 
+		// zabezpieczenie dziecka
 		shared_ptr<Node> child;
 		if (el->_modbox._time != -1)
 			child = el->_modbox._ptr;
@@ -458,10 +454,14 @@ public:
 			{
 				y->_modbox._time = _timestamps.size();
 				y->_modbox._ptr = child;
-				if (el == y->_left)
+				if (child == nullptr)
+					y->_modbox._field = 0;
+				else if (el == y->_left)
 					y->_modbox._field = -1;
-				else
+				else if (el == y->_right)
 					y->_modbox._field = 1;
+				else // el == nullptr
+					y->_modbox._field = 0;
 				_timestamps.push_back(_timestamps.back());
 			}
 			else	// trzeba kopiowac
@@ -484,44 +484,29 @@ public:
 					zParent = z;
 					_timestamps.push_back(z);	// nowy root
 					x = x->_modbox._ptr;
-
-					while (x != nullptr)	// kopiowanie drzewa
-					{
-						if (x->_value == value)	// pominiecie elementu do skasowania
-						{
-							x = x->_modbox._ptr;
-							continue;
-						}
-						if (_cmp(x->_value, x->_parent->_value) == -1)
-							z = z->_left;
-						else
-							z = z->_right;
-						z = make_shared<Node>(x);
-						z->_parent = zParent;
-						if (_cmp(z->_value, zParent->_value) == -1)
-							zParent->_left = z;
-						else
-							zParent->_right = z;
-
-						x = x->_modbox._ptr;	// x = dziecko iksa
-						zParent = z; // dla nastepnego przebiegu
-					}
-					return true;
 				}
-
-				// kopiowanie fragmentu drzewa
-				// y - najniszy el. z wolnym polem modyfikacji
-				// x - pierwszy el. do skopiowania
-/*				x = (_cmp(e->_value, y->_value) == -1) ? (y->_left) : (y->_right);
-				z = make_shared<Node>(x);
-				y->_modbox._time = _timestamps.size();
-				y->_modbox._field = (_cmp(x->_value, y->_value) == -1) ? -1 : 1;
-				y->_modbox._ptr = z;
-				zParent = z;
-				x = x->_modbox._ptr;
-
+				else
+				{
+					// kopiowanie fragmentu drzewa
+					// y - najniszy el. z wolnym polem modyfikacji
+					// x - pierwszy el. do skopiowania
+					x = (_cmp(el->_value, y->_value) == -1) ? (y->_left) : (y->_right);
+					z = make_shared<Node>(x);
+					y->_modbox._time = _timestamps.size();
+					y->_modbox._field = (_cmp(x->_value, y->_value) == -1) ? -1 : 1;
+					y->_modbox._ptr = z;
+					zParent = z;
+					x = x->_modbox._ptr;
+					_timestamps.push_back(_timestamps.back());
+				}
+				// kopiowanie dalszej czesci drzewa
 				while (x != nullptr)
 				{
+					if (x->_value == value)	// pominiecie elementu do skasowania
+					{
+						x = x->_modbox._ptr;
+						continue;
+					}
 					if (_cmp(x->_value, x->_parent->_value) == -1)
 						z = z->_left;
 					else
@@ -536,20 +521,8 @@ public:
 					x = x->_modbox._ptr;	// x = dziecko x
 					zParent = z; // dla nastepnego przebiegu
 				}
-				// przypisanie rodzicowi dziecka (e)
-				while (_cmp(parent->_value, z->_value) != 0)	// szukamy rodzica
-					z = z->_parent;
-				if (_cmp(e->_value, z->_value) == -1)
-					z->_left = e;
-				else
-					z->_right = e;
-				e->_parent = z;
-
-				_timestamps.push_back(_timestamps.back());	*/
 			}
 		}
-		if (el != ptr)
-			ptr->_value = el->_value;
 		return true;
 	}
 
