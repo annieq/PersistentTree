@@ -9,41 +9,39 @@ void printTree(BST<int>, int);
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	BST<int> bst;
+	BST<int> bst, bst2;
 
 	try {
 		bst.insert(20);
 		bst.insert(10);
 		bst.insert(5);
-		bst.erase(5);
-		bst.insert(5);
-		bst.erase(5);
-		bst.erase(20);
-		//bst.insert(15);
-		//bst.erase(10);
-		//bst.insert(17);
-		//bst.insert(12);
-		//bst.insert(21);
-		//bst.erase(17);
+		bst.insert(15);
+		bst.insert(17);
+		bst.insert(12);
+		bst.insert(21);
 
-		bool found = bst.find(10, 6);
-		found = bst.find(17, 3);
-		found = bst.find(20, 10);
+		bst2.insert(20);
+		bst2.insert(10);
+		bst2.insert(5);
+		bst2.erase(5);
 
-		printTree(bst, 0);
-		printTree(bst, 1);
-		printTree(bst, 2);
-		printTree(bst, 3);
-		printTree(bst, 4);
-		printTree(bst, 5);
-		printTree(bst, 6);
+		for (int i=0; i<7; ++i)
+			printTree(bst, i);
+		cout << " ----------- Drugie drzewo --------\n\n";
+		for (int i=0; i<4; ++i)
+			printTree(bst2, i);
 	}
 	catch (int e) {
-		cout << e << endl;
+		cout << "Wyjatek przy wstawianiu/usuwaniu: " << e << endl;
 	}
-	//printTree(bst, 8); // trzeba lapac wyjatek!
-
-	//BST<int>::iterator i = bst.back(5);
+	try {
+		bool found = bst.find(10, 6);
+		found = bst.find(17, 3);
+		found = bst.find(20, 20);
+	}
+	catch (int e) {
+		cout << "Wyjatek przy przeszukiwaniu: " <<e << endl;
+	}
 
 	system("pause");
 	return 0;

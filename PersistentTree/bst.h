@@ -301,46 +301,22 @@ public:
 					zParent = z;
 					_timestamps.push_back(z);	// nowy root
 					x = x->_modbox._ptr;
-
-					while (x != nullptr)	// kopiowanie drzewa
-					{
-						if (_cmp(x->_value, x->_parent->_value) == -1)
-							z = z->_left;
-						else
-							z = z->_right;
-						z = make_shared<Node>(x);
-						z->_parent = zParent;
-						if (_cmp(z->_value, zParent->_value) == -1)
-							zParent->_left = z;
-						else
-							zParent->_right = z;
-
-						x = x->_modbox._ptr;	// x = dziecko iksa
-						zParent = z; // dla nastepnego przebiegu
-					}
-					// przypisanie rodzicowi dziecka (e)
-					while (_cmp(parent->_value, z->_value) != 0)	// szukamy rodzica
-						z = z->_parent;
-					if (_cmp(e->_value, z->_value) == -1)	// przypisujemy
-						z->_left = e;
-					else
-						z->_right = e;
-					e->_parent = z;
-
-					return true;
 				}
-
-				// kopiowanie fragmentu drzewa
-				// y - najniszy el. z wolnym polem modyfikacji
-				// x - pierwszy el. do skopiowania
-				x = (_cmp(e->_value, y->_value) == -1) ? (y->_left) : (y->_right);
-				z = make_shared<Node>(x);
-				y->_modbox._time = _timestamps.size();
-				y->_modbox._field = (_cmp(x->_value, y->_value) == -1) ? -1 : 1;
-				y->_modbox._ptr = z;
-				zParent = z;
-				x = x->_modbox._ptr;
-
+				else 
+				{
+					// kopiowanie fragmentu drzewa
+					// y - najniszy el. z wolnym polem modyfikacji
+					// x - pierwszy el. do skopiowania
+					x = (_cmp(e->_value, y->_value) == -1) ? (y->_left) : (y->_right);
+					z = make_shared<Node>(x);
+					y->_modbox._time = _timestamps.size();
+					y->_modbox._field = (_cmp(x->_value, y->_value) == -1) ? -1 : 1;
+					y->_modbox._ptr = z;
+					zParent = z;
+					x = x->_modbox._ptr;
+					_timestamps.push_back(_timestamps.back());
+				}
+				// kopiowanie reszty drzewa
 				while (x != nullptr)
 				{
 					if (_cmp(x->_value, x->_parent->_value) == -1)
@@ -360,13 +336,11 @@ public:
 				// przypisanie rodzicowi dziecka (e)
 				while (_cmp(parent->_value, z->_value) != 0)	// szukamy rodzica
 					z = z->_parent;
-				if (_cmp(e->_value, z->_value) == -1)
+				if (_cmp(e->_value, z->_value) == -1)	// przypisujemy
 					z->_left = e;
 				else
 					z->_right = e;
 				e->_parent = z;
-
-				_timestamps.push_back(_timestamps.back());
 			}
 		}
 
@@ -466,7 +440,6 @@ public:
 			}
 			else	// trzeba kopiowac
 			{
-				shared_ptr<Node> parent = y;
 				shared_ptr<Node> x = nullptr;
 				while (y != nullptr && y->_modbox._time != -1)	// szukamy wezla z pustym polem modyfikacji
 				{
