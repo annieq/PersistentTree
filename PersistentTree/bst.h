@@ -499,42 +499,4 @@ public:
 		return true;
 	}
 
-	T& min(void)
-	{
-		if (_root == nullptr)
-			throw -1;
-		shared_ptr<Node> ptr = _root;
-		while (ptr->_left != nullptr)
-			ptr = ptr->_left;
-		return ptr->_value;
-	}
-
-	T& max(void)
-	{
-		if (_root == nullptr)
-			throw -2;
-		shared_ptr<Node> ptr = _root;
-		while (ptr->_right != nullptr)
-			ptr = ptr->_right;
-		return ptr->_value;
-	}
-
-	// funkcja pomocnicza, wypisuje korzen i jego synow
-	void printPart()
-	{
-		if (_root != nullptr)
-		{
-			cout << "Root: " << _root->_value << "\n";
-			if (_root->_left != nullptr)
-				cout << "Left child: " << _root->_left->_value << "\n";
-			else
-				cout << "Left child: NULL\n";
-			if (_root->_right != nullptr)
-				cout << "Right child: " << _root->_right->_value << "\n";
-			else
-				cout << "Right child: NULL\n";
-		}
-		else
-			cout << "Root: NULL\n";
-	}
 };
